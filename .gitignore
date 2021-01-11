@@ -1,1 +1,5 @@
 /target
+*.png
+*.xcf
+board_reversing.txt
+complex_board.txt
