@@ -1,6 +1,12 @@
 # Reading Game Data From 5dchess
 This is a super WIP at the moment, more reverse engineering needs to be done and more code needs to be written.
 
+# Usage
+- Be on windows with the game open and some board visible
+- run the program (cargo run)
+- it should print out a bunch of stuff, at the bottom will be what it got for the moves that have been made
+
+
 # Goals
 - Save a game in a usable format to be given to other programs if desired
 - Maybe be able to load games back into the program (this isn't even close to working at this point)

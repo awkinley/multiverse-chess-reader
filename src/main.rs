@@ -519,6 +519,8 @@ pub fn generate_turns(game_boards: &Vec<GameBoard>) -> Vec<notation::Turn> {
             a => {println!("player to move is {}", a); Player::White}
         };
 
+        // because we're looking one turn ahead,
+        // we look for when we find a board where that player makes the next move to know that we've found all their moves
         if player == player_to_move {
             let turn = Turn {moves: moves, player};
             moves = Vec::new();
