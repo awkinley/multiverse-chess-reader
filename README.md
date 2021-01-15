@@ -1,7 +1,7 @@
 # Reading Game Data From 5dchess
 This is a super WIP at the moment, more reverse engineering needs to be done and more code needs to be written.
 
-[A demo of a game with the generated moved](imgs/Demo.png)
+![A demo of a game with the generated moved](imgs/Demo.png)
 
 # Usage
 - Be on windows with the game open and some board visible
