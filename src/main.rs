@@ -150,7 +150,8 @@ pub fn alloc_and_write_memory(process_id: winapi::shared::minwindef::DWORD, num_
 
                 let address = (mem_ptr as u64 + bytes_written_sum as u64) as *mut c_void;
                 println!("address is {:?}", address);
-                let result = winapi::um::memoryapi::WriteProcessMemory(hProcess, address, buffer.as_ptr() as *mut winapi::ctypes::c_void, buffer_size,  &mut bytes_written as *mut winapi::shared::basetsd::SIZE_T);
+                let result = winapi::um::memoryapi::WriteProcessMemory(hProcess, address, buffer.as_ptr() as *mut winapi::ctypes::c_void, buffer_size,  
+                                                                        &mut bytes_written as *mut winapi::shared::basetsd::SIZE_T);
                 if result == 0 {
                     println!("write in loop failed {}", std::io::Error::last_os_error());
                     return Err(String::from("failed write in loop"));
@@ -228,96 +229,8 @@ pub fn print_process_name_and_id(processID: u32) -> String {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum PieceType {
-    Nothing, 
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
-    Unicorn,
-    Dragon,
-    Brawn,
-    FourPointQueen,
-    RoyalQueen,
-    CommongKing,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum PieceOwner {
-    NoOwner,
-    White,
-    Black,
-}
-
-extern crate num_enum;
-use num_enum::TryFromPrimitive;
-use std::convert::TryFrom;
-
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
-#[repr(u32)]
-pub enum PlayerToMove {
-    White = 0,
-    Black = 1,
-    SomethingElse,
-}
-
-
-#[derive(Debug, Clone, Copy)]
-pub struct Piece {
-    piece_type: PieceType,
-    owner: PieceOwner,
-}
-
-#[derive(Debug)]
-pub struct Field {
-    name: &'static str,
-    offset: u64,
-}
-
-#[derive(Debug)]
-pub struct FieldNameWithValue {
-    name: &'static str,
-    value: i32,
-}
-
-static BOARD_FIELDS: [Field; 24] =      [Field {name: "board number", offset: 0}, 
-                                        Field {name: "timeline number", offset: 4}, 
-                                        Field {name: "time position", offset: 8},
-                                        Field {name: "board id", offset: 144},
-                                        Field {name: "is active", offset: 148},
-                                        Field {name: "timeline number 2", offset: 152}, 
-                                        Field {name: "time position 2", offset: 156},
-                                        Field {name: "player to move 2", offset: 160},
-                                        Field {name: "next move start row", offset: 164},
-                                        Field {name: "next move start col", offset: 168},
-                                        Field {name: "next move dest universe", offset: 172},
-                                        Field {name: "next move dest time", offset: 176},
-                                        Field {name: "next move piece owner", offset: 180},
-                                        Field {name: "next move end row", offset: 184},
-                                        Field {name: "next move end col", offset: 188},
-                                        Field {name: "board id of previous move start", offset: 192},
-                                        Field {name: "board number of next board", offset: 196},
-                                        Field {name: "board number of previous board", offset: 200},
-                                        Field {name: "board number of any new boards created by this boards move", offset: 204},
-                                        Field {name: "board number of board that a piece left to create this board", offset: 208},
-                                        Field {name: "last move start row", offset: 212},
-                                        Field {name: "last move start col", offset: 216},
-                                        Field {name: "last move end row", offset: 220},
-                                        Field {name: "last move end col", offset: 224},
-                                        ];
-
-
-#[derive(Debug)]
-pub struct Board {
-    player_to_move: u32,
-    width: u32,
-    height: u32,
-    pieces: Vec<Vec<Piece>>,
-    fields: Vec<FieldNameWithValue>,
-}
+mod game_data;
+use self::game_data::*;
 
 pub fn char_for_piece_type(piece_type: PieceType) -> char {
     match piece_type {
@@ -354,12 +267,21 @@ pub fn get_field_name_from_offset(offset: u64) -> &'static str {
     return "";
 }
 
-pub fn print_board(board: &Board) {
+pub fn get_field_offset_from_name(name: &str) -> u64 {
+    for field in &BOARD_FIELDS {
+        if name == field.name {
+            return field.offset;
+        }
+    }
+    return 0;
+}
+
+pub fn print_board(board: &GameBoard) {
     let pieces = &board.pieces;
     for named_field in &board.fields {
         println!("{} = {}", named_field.name, named_field.value);
     }
-    // println!("board_number = {} timeline_number = {} time_position = {} player_to_move = {:?}", board.board_number, board.timeline_number, board.time_position, board.player_to_move);
+    println!("player_to_move = {:?}", board.player_to_move);
     // println!("last move start (row, col) = ({}, {}), last move end (row, col) = ({}, {})", board.last_move_start_row, board.last_move_start_col, board.last_move_end_row, board.last_move_end_col);
     for row in (0..board.height).rev() {
         for col in 0..board.width {
@@ -397,15 +319,15 @@ pub fn write_bytes(process_handle: (*mut winapi::ctypes::c_void, process_memory:
 
 }
 
-pub fn read_boards(board_vec: Vec<u64>, process_handle: (*mut winapi::ctypes::c_void, process_memory::Architecture), process_offset: usize) -> Vec<Board> {
+pub fn read_boards(board_vec: Vec<u64>, process_handle: (*mut winapi::ctypes::c_void, process_memory::Architecture), process_offset: usize) -> Vec<GameBoard> {
     use process_memory::*;
 
     let board_width = DataMember::<u32>::new_offset(process_handle, vec![process_offset + 0x14bb60]).read().unwrap();
     let board_height = DataMember::<u32>::new_offset(process_handle, vec![process_offset + 0x14bb64]).read().unwrap();
 
 
-    let nothing_piece = Piece {piece_type: PieceType::Nothing, owner: PieceOwner::NoOwner};
-    let mut real_boards = Vec::<Board>::new();
+    let nothing_piece = GamePiece {piece_type: PieceType::Nothing, owner: PieceOwner::NoOwner};
+    let mut real_boards = Vec::<GameBoard>::new();
     for board in &board_vec {
         let empty_row = vec![nothing_piece; board_width as usize];
         let mut pieces = vec![empty_row; board_width as usize];
@@ -439,7 +361,7 @@ pub fn read_boards(board_vec: Vec<u64>, process_handle: (*mut winapi::ctypes::c_
                 };
                 // println!("piece_type is {:?}, piece_owner is {:?}", piece_type, owner);
 
-                let piece = Piece {piece_type, owner};
+                let piece = GamePiece {piece_type, owner};
                 pieces[row as usize][col as usize] = piece;
 
             }
@@ -451,13 +373,193 @@ pub fn read_boards(board_vec: Vec<u64>, process_handle: (*mut winapi::ctypes::c_
             new_board_fields.push(FieldNameWithValue{name: field.name, value});
         }
 
-        let new_board = Board {player_to_move, width: board_width, height: board_height, pieces, fields: new_board_fields};
+        let new_board = GameBoard {player_to_move, width: board_width, height: board_height, pieces, fields: new_board_fields};
         real_boards.push(new_board);
         
     }
 
     return real_boards;
 
+}
+
+pub fn get_boards_where_field_has_value(game_boards: &Vec<GameBoard>, field_name: &str, value: i32) -> Option<GameBoard> {
+    for board in game_boards {
+        let fields = &board.fields;
+        for f in fields {
+            if f.name == field_name {
+                if f.value == value {
+                    return Some(board.clone());
+                }
+            }
+        }
+
+    }
+
+    None
+}
+
+pub fn get_field_value_in_board_by_name(board: &GameBoard, field_name: &str) -> i32 {
+    let fields = &board.fields;
+    for f in fields {
+        if f.name == field_name {
+            return f.value;
+        }
+    }
+
+    -1
+}
+
+mod notation;
+use self::notation::*;
+pub fn game_piece_to_notation_piece(p: GamePiece) -> notation::Piece {
+    match p.piece_type {
+        PieceType::Nothing => Piece::Nothing,
+        PieceType::Pawn => Piece::Pawn,
+        PieceType::Knight => Piece::Knight,
+        PieceType::Bishop => Piece::Bishop,
+        PieceType::Rook => Piece::Rook,
+        PieceType::Queen => Piece::Queen,
+        PieceType::King => Piece::King,
+        PieceType::Unicorn => Piece::Unicorn,
+        PieceType::Dragon => Piece::Dragon,
+        PieceType::Brawn => Piece::Brawn,
+        PieceType::FourPointQueen => Piece::FourPointQueen,
+        PieceType::RoyalQueen => Piece::RoyalQueen,
+        PieceType::CommongKing => Piece::CommongKing,
+        _ => Piece::Nothing,
+    }
+}
+
+pub fn move_for_board(board: &GameBoard, game_boards: &Vec<GameBoard>) -> notation::Move {
+    let next_move_start_row = get_field_value_in_board_by_name(&board, NEXT_MOVE_START_ROW);
+    let next_move_start_col = get_field_value_in_board_by_name(&board, NEXT_MOVE_START_COL);
+    let board_timeline = get_field_value_in_board_by_name(&board, TIMELINE_NUMBER);
+    let board_time = get_field_value_in_board_by_name(&board, TIME_POSITION);
+
+    let next_move_dest_row = get_field_value_in_board_by_name(&board, NEXT_MOVE_DEST_ROW);
+    let next_move_dest_col = get_field_value_in_board_by_name(&board, NEXT_MOVE_DEST_COL);
+    let next_move_dest_universe = get_field_value_in_board_by_name(&board, NEXT_MOVE_DEST_UNIVERSE);
+    let next_move_dest_time = get_field_value_in_board_by_name(&board, NEXT_MOVE_DEST_TIME);
+
+    let next_board = get_field_value_in_board_by_name(&board, NEXT_BOARD_NUMBER);
+    let created_board_number = get_field_value_in_board_by_name(&board, CREATED_BOARD_NUMBER);
+    let prev_board = get_field_value_in_board_by_name(&board, PREV_BOARD_NUMBER);
+
+    let pieces = board.pieces.clone();
+    let moving_piece = pieces[next_move_start_row as usize][next_move_start_col as usize];
+    let notation_piece: Piece = game_piece_to_notation_piece(moving_piece);
+
+    let start_loc = Location {universe: board_timeline, time: board_time, row: next_move_start_row, col: next_move_start_col};
+    let end_loc = Location {universe: next_move_dest_universe, time: next_move_dest_time, row: next_move_dest_row, col: next_move_dest_col};
+
+    let is_jump: bool = start_loc.universe != end_loc.universe || start_loc.time != end_loc.time;
+    let mut is_branching = false;
+    let mut does_capture = false;
+    if is_jump {
+        
+        let created_board = match get_boards_where_field_has_value(game_boards, BOARD_NUMBER, created_board_number) {
+            Some(a) => a,
+            None => panic!("field named {} with value {} not found", BOARD_NUMBER, created_board_number),
+        };
+
+        let created_board_timeline = get_field_value_in_board_by_name(&created_board, TIMELINE_NUMBER);
+        let created_board_prev_board_num = get_field_value_in_board_by_name(&created_board, PREV_BOARD_NUMBER);
+        let created_board_prev_board = match get_boards_where_field_has_value(game_boards, BOARD_NUMBER, created_board_prev_board_num) {
+            Some(a) => a,
+            None => panic!("field named {} with value {} not found", BOARD_NUMBER, created_board_prev_board_num),
+        };
+        let created_board_prev_timeline = get_field_value_in_board_by_name(&created_board_prev_board, TIMELINE_NUMBER);
+
+        // the board created by the jump has a previous board, which is the start of the purple arrow that points to the
+        // left side of that board on the UI
+        // if the timeline that that previous board is in is different from the timeline that the board that was created by the jump
+        // then the board branches, otherwise it does not
+        if created_board_timeline != created_board_prev_timeline {
+            is_branching = true;
+        }
+
+        let potentially_captured_pieces = created_board_prev_board.pieces;
+        let potentially_captured_piece = potentially_captured_pieces[end_loc.row as usize][end_loc.col as usize];
+
+        does_capture = match potentially_captured_piece.piece_type {
+            PieceType::Nothing => false,
+            _ => true,
+        };
+    }
+
+
+    let piece_move = Move {start_loc, end_loc, start_piece: notation_piece, end_piece: notation_piece, is_jump, is_branching, does_capture, moves_present: false};
+    
+    return piece_move;
+}
+pub fn generate_turns(game_boards: &Vec<GameBoard>) -> Vec<notation::Turn> {
+    let mut turns = Vec::<Turn>::new();
+
+    // boards are numbered in the order they are created
+    // this means that by going sequentially up through the board numbers and looking at the move that 
+    // was played on the previous board to make that board, then we can get the moves in the order they were made
+    // this also makes it easier to deal with branching (more on that below)
+    let mut board_num = 1i32;
+    let mut player = Player::White;
+    let mut moves = Vec::new();
+    while board_num < game_boards.len() as i32 {
+        println!("board index: {}", board_num);
+        let board = match get_boards_where_field_has_value(game_boards, BOARD_NUMBER, board_num) {
+            Some(a) => a,
+            None => {println!("field named {} with value {} not found", BOARD_NUMBER, board_num); 
+                    return turns; }
+        };
+        
+        print_board(&board);
+
+        let prev_board_num = get_field_value_in_board_by_name(&board, PREV_BOARD_NUMBER);
+        let player_to_move = match board.player_to_move{
+            0 => Player::White,
+            1 => Player::Black,
+            a => {println!("player to move is {}", a); Player::White}
+        };
+
+        if player == player_to_move {
+            let turn = Turn {moves: moves, player};
+            moves = Vec::new();
+            println!("turn: {:?}", turn);
+            println!("turn notation: {}", turn.to_notation());
+            turns.push(turn);
+            println!("\n");
+            player = match player {
+                Player::White => Player::Black,
+                Player::Black => Player::White,
+            }
+        }
+
+        let prev_board = match get_boards_where_field_has_value(game_boards, BOARD_NUMBER, prev_board_num) {
+            Some(a) => a,
+            None => {println!("field named {} with value {} not found", BOARD_NUMBER, prev_board_num); 
+                    return turns; }
+        };
+
+        
+
+        // let mut moves = Vec::new();
+        let prev_move = move_for_board(&prev_board, game_boards);
+        moves.push(prev_move);
+
+        // a jump creates two boards, the one where the piece left that board, and the one where the piece arrived
+        // so we increment one extra time to account for this
+        if prev_move.is_jump {
+            board_num += 1;
+        }
+
+
+        board_num += 1;
+    }
+
+    let turn = Turn {moves: moves, player};
+    println!("turn: {:?}", turn);
+    println!("turn notation: {}", turn.to_notation());
+    turns.push(turn);
+    println!("\n");
+    return turns;
 }
 fn main() -> std::io::Result<()>  {
 
@@ -488,22 +590,22 @@ fn main() -> std::io::Result<()>  {
     
 
     // wait for keyboard input so that we can do stuff on the other end
-    use std::io;
-    let mut guess = String::new();
-    io::stdin().read_line(&mut guess).expect("Failed to read line");
+    // use std::io;
+    // let mut guess = String::new();
+    // io::stdin().read_line(&mut guess).expect("Failed to read line");
 
-    println!("board data length is {}", board_data.len());
-    // write the saved data back to the process and get the pointer to that data
-    let new_board_ptr = alloc_and_write_memory(pid, board_data.len(), &board_data).unwrap();
-    println!("new board ptr {:?}", new_board_ptr);
-    write_bytes(process_handle, (offset + 0x14BA80) as u64, game_board_data_length, game_board_data);
-    // put the address of the new data in the current board address location
-    DataMember::<u64>::new_offset(process_handle, vec![offset + 0x14bab8]).write(&(new_board_ptr as u64)).unwrap();
+    // println!("board data length is {}", board_data.len());
+    // // write the saved data back to the process and get the pointer to that data
+    // let new_board_ptr = alloc_and_write_memory(pid, board_data.len(), &board_data).unwrap();
+    // println!("new board ptr {:?}", new_board_ptr);
+    // write_bytes(process_handle, (offset + 0x14BA80) as u64, game_board_data_length, game_board_data);
+    // // put the address of the new data in the current board address location
+    // DataMember::<u64>::new_offset(process_handle, vec![offset + 0x14bab8]).write(&(new_board_ptr as u64)).unwrap();
     
    
    
     current_board_address = DataMember::<u64>::new_offset(process_handle, vec![offset + 0x14bab8]).read().unwrap();
-    DataMember::<u32>::new_offset(process_handle, vec![offset + 0x14bab0]).write(&num_boards).unwrap();
+    // DataMember::<u32>::new_offset(process_handle, vec![offset + 0x14bab0]).write(&num_boards).unwrap();
     // write_board_bytes(process_handle, current_board_address, (num_boards as u64) * board_memory_length, board_data);
 
     
@@ -517,9 +619,23 @@ fn main() -> std::io::Result<()>  {
 
     let boards = read_boards(board_vec, process_handle, offset);
 
-    for board in &boards {
-        // print_board(board);
+    let turns = generate_turns(&boards);
+
+    let mut turn_num = 1;
+    for t in &turns {
+        if t.player == Player::White {
+            print!("{}. {}/ ", turn_num, t.to_notation());
+        }
+        else {
+            println!("{}", t.to_notation());
+            turn_num += 1;
+        }
+        
     }
+
+    // for board in &boards {
+    //     print_board(board);
+    // }
 
     // println!("offset : {}", board_width.get_offset()?);
 
