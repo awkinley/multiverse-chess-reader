@@ -28,8 +28,8 @@ impl From<Piece> for &str {
             Piece::Unicorn => "U",
             Piece::Dragon => "D",
             Piece::Brawn => "BR",
-            Piece::FourPointQueen => "RQ",
-            Piece::RoyalQueen => "S",
+            Piece::FourPointQueen => "S",
+            Piece::RoyalQueen => "RQ",
             Piece::CommongKing => "CK",
             Piece::Nothing => "",
         }
