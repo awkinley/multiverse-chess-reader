@@ -1,5 +1,9 @@
 /target
-*.png
-*.xcf
+branching2.png
+branching2.xcf
+complex_board.png
+complex_board.xcf
+rookIV.png
+rookIV.xcf
 board_reversing.txt
 complex_board.txt
