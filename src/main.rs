@@ -481,6 +481,7 @@ pub fn move_for_board(board: &GameBoard, game_boards: &Vec<GameBoard>) -> notati
         let potentially_captured_pieces = created_board_prev_board.pieces;
         let potentially_captured_piece = potentially_captured_pieces[end_loc.row as usize][end_loc.col as usize];
 
+        // check if we landed on a piece
         does_capture = match potentially_captured_piece.piece_type {
             PieceType::Nothing => false,
             _ => true,
@@ -552,7 +553,6 @@ pub fn generate_turns(game_boards: &Vec<GameBoard>) -> Vec<notation::Turn> {
             board_num += 1;
         }
 
-
         board_num += 1;
     }
 
@@ -563,6 +563,21 @@ pub fn generate_turns(game_boards: &Vec<GameBoard>) -> Vec<notation::Turn> {
     println!("\n");
     return turns;
 }
+
+pub fn print_turns(turns: &Vec<Turn>) {
+    let mut turn_num = 1;
+    for t in turns {
+        if t.player == Player::White {
+            print!("{}. {}/ ", turn_num, t.to_notation());
+        }
+        else {
+            println!("{}", t.to_notation());
+            turn_num += 1;
+        }
+        
+    }
+}
+
 fn main() -> std::io::Result<()>  {
 
     // We need to make sure that we get a handle to a process, in this case, ourselves
@@ -623,17 +638,7 @@ fn main() -> std::io::Result<()>  {
 
     let turns = generate_turns(&boards);
 
-    let mut turn_num = 1;
-    for t in &turns {
-        if t.player == Player::White {
-            print!("{}. {}/ ", turn_num, t.to_notation());
-        }
-        else {
-            println!("{}", t.to_notation());
-            turn_num += 1;
-        }
-        
-    }
+    print_turns(&turns);
 
     // for board in &boards {
     //     print_board(board);
