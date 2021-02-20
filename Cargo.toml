@@ -16,4 +16,4 @@ fixed = "1.6.0"
 winapi = { version = "0.3", features = ["tlhelp32", "psapi"] }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winnt", "memoryapi", "minwindef", "processthreadsapi"] }
+winapi = { version = "0.3", features = ["winnt", "memoryapi", "minwindef", "processthreadsapi", "errhandlingapi"] }
