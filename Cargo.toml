@@ -9,6 +9,8 @@ edition = "2018"
 [dependencies]
 process-memory = "0.4"
 num_enum = "0.5.1"
+retry = "1.2.0"
+fixed = "1.6.0"
 
 [target.'cfg(windows)'.dev-dependencies]
 winapi = { version = "0.3", features = ["tlhelp32", "psapi"] }

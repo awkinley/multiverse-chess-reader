@@ -44,6 +44,7 @@ pub fn get_pid(process_name: &str) -> process_memory::Pid {
                 == winapi::shared::minwindef::TRUE
             {
                 if utf8_to_string(&entry.szExeFile) == process_name {
+                    print!{"{}", utf8_to_string(&entry.szExeFile)}
                     return entry.th32ProcessID;
                 }
             }
@@ -54,11 +55,16 @@ pub fn get_pid(process_name: &str) -> process_memory::Pid {
 
 #[cfg(windows)]
 use winapi::ctypes::{c_void};
+#[cfg(windows)]
 use winapi::shared::minwindef::{LPDWORD, HMODULE};
+#[cfg(windows)]
 use winapi::um::winnt::*;
+#[cfg(windows)]
 use winapi::um::processthreadsapi::*;
+#[cfg(windows)]
 use winapi::um::psapi::*;
 use std::ptr::*;
+#[cfg(windows)]
 pub fn list_modules(process_id: winapi::shared::minwindef::DWORD) -> std::io::Result<()> {
     unsafe {
         let hProcess: HANDLE =
@@ -105,7 +111,7 @@ pub fn list_modules(process_id: winapi::shared::minwindef::DWORD) -> std::io::Re
     }
     Ok(())
 }
-
+#[cfg(windows)]
 pub fn get_offset(process_id: winapi::shared::minwindef::DWORD) -> std::result::Result<usize, String> {
     unsafe {
         let hProcess: HANDLE =
@@ -127,7 +133,7 @@ pub fn get_offset(process_id: winapi::shared::minwindef::DWORD) -> std::result::
     }
     Err(String::from("failed"))
 }
-
+#[cfg(windows)]
 pub fn alloc_and_write_memory(process_id: winapi::shared::minwindef::DWORD, num_bytes: usize, bytes: &Vec<u8>) -> std::result::Result<*mut c_void, String> {
     unsafe {
         let hProcess: HANDLE =
@@ -188,11 +194,14 @@ pub fn alloc_and_write_memory(process_id: winapi::shared::minwindef::DWORD, num_
 
 #[cfg(windows)]
 use winapi::um::winnt::*;
+#[cfg(windows)]
 use winapi::um::processthreadsapi::*;
+#[cfg(windows)]
 use winapi::um::psapi::*;
 // use winapi::ctypes::{c_void};
 // use winapi::shared::minwindef::{LPDWORD, HMODULE};
 // use std::ptr;
+#[cfg(windows)]
 pub fn print_process_name_and_id(processID: u32) -> String {
     unsafe {
         let mut process_name: String = String::new();
@@ -298,15 +307,19 @@ pub fn print_board(board: &GameBoard) {
     }
 }
 
-pub fn read_bytes(process_handle: (*mut winapi::ctypes::c_void, process_memory::Architecture), starting_addresss: u64, length_bytes: u64) -> Vec<u8> {
+pub fn read_bytes(process_handle: (*mut winapi::ctypes::c_void, process_memory::Architecture), starting_addresss: u64, length_bytes: u64) -> Result<Vec<u8>, std::io::Error> {
     use process_memory::*;
     
     let mut bytes = Vec::<u8>::new();
     for i in 0..length_bytes {
-        let value = DataMember::<u8>::new_offset(process_handle, vec![(starting_addresss + i) as usize]).read().unwrap();
+        let r = DataMember::<u8>::new_offset(process_handle, vec![(starting_addresss + i) as usize]).read();
+        let value = match r {
+            Ok(result) => result,
+            Err(er) => return Err(er)
+        };
         bytes.push(value);
     }
-    return bytes;
+    return Ok(bytes);
 }
 
 pub fn write_bytes(process_handle: (*mut winapi::ctypes::c_void, process_memory::Architecture), starting_addresss: u64, length_bytes: u64, bytes: Vec<u8>) {
@@ -577,16 +590,20 @@ pub fn print_turns(turns: &Vec<Turn>) {
         
     }
 }
+// extern crate retry;
 
+#[cfg(windows)]
 fn main() -> std::io::Result<()>  {
-
+    use std::time::Duration;
+    use retry::delay::Fixed;
+    use retry::retry;
     // We need to make sure that we get a handle to a process, in this case, ourselves
     // let handle = (std::process::id() as Pid).try_into_process_handle().unwrap();
     use process_memory::*;
     let pid = get_pid("5dchesswithmultiversetimetravel.exe");
     let offset = match get_offset(pid) {
         Ok(v) => v,
-        Err(e) => panic!(e),
+        Err(e) => panic!("Could not find 5dchesswithmultiversetimetravel.exe: {}" ,e ),
     };
     // println!("{}", print_process_name_and_id(pid));
     // println!("pid is {}", pid);
@@ -596,7 +613,18 @@ fn main() -> std::io::Result<()>  {
     let num_boards = DataMember::<u32>::new_offset(process_handle, vec![offset + 0x14bab0]).read().unwrap();
 
     let game_board_data_length = 0x40u64;
-    let game_board_data = read_bytes(process_handle, (offset + 0x14BA80) as u64, game_board_data_length);
+    const START_OF_GAME_BOARD_DATA: usize =  0x14BA80; // Give names to constants 
+    println!("About to read into {}" , (offset + START_OF_GAME_BOARD_DATA) );
+    let game_board_data : std::vec::Vec<u8>;
+    let result = retry(Fixed::from_millis(100).take(2), || {
+    return read_bytes(process_handle, (offset + START_OF_GAME_BOARD_DATA) as u64, game_board_data_length);
+    });
+
+    match result {
+        Ok(a) => println!("oke"),
+        Err(e) => println!("error : {:?}", e),
+    }
+
     // let mut game_board_data = DataMember::<u64>::new_offset(process_handle, vec![offset + 0x14BA80]).read().unwrap();
     let mut current_board_address = DataMember::<u64>::new_offset(process_handle, vec![offset + 0x14bab8]).read().unwrap();
     
@@ -621,7 +649,7 @@ fn main() -> std::io::Result<()>  {
     
    
    
-    current_board_address = DataMember::<u64>::new_offset(process_handle, vec![offset + 0x14bab8]).read().unwrap();
+    current_board_address = DataMember::<u64>::new_offset(process_handle, vec![offset + START_OF_GAME_BOARD_DATA]).read().unwrap();
     // DataMember::<u32>::new_offset(process_handle, vec![offset + 0x14bab0]).write(&num_boards).unwrap();
     // write_board_bytes(process_handle, current_board_address, (num_boards as u64) * board_memory_length, board_data);
 
