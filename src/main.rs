@@ -117,7 +117,7 @@ pub fn get_offset(process_id: winapi::shared::minwindef::DWORD) -> std::result::
         let hProcess: HANDLE =
             OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id);
         if hProcess == null_mut() {
-            return Err(winapi::um::errhandlingapi::GetLastError());
+            return Err(format!("{}{}", "hProcess == null", winapi::um::errhandlingapi::GetLastError().to_string()));
         }
         if hProcess != null_mut() {
             let mut hMod: HMODULE = null_mut();
@@ -125,16 +125,16 @@ pub fn get_offset(process_id: winapi::shared::minwindef::DWORD) -> std::result::
             if EnumProcessModules(
                 hProcess,
                 &mut hMod,
-                std::mem::size_of::<HMODULE>() as u32,
-                &mut cb_needed as *mut _ as *mut u32,
+                std::mem::size_of::<HMODULE>() as winapi::shared::minwindef::DWORD,
+                &mut cb_needed as *mut _ as *mut winapi::shared::minwindef::DWORD,
             ) == 0
             {
-                return Err(String::from("failed"))
+                return Err(format!("{} errocode {}", "EnumProcessModules == 0", winapi::um::errhandlingapi::GetLastError().to_string()));
             }
             return Ok(hMod as usize);
         }
     }
-    Err(String::from("failed"))
+    Err(String::from("failed end of function"))
 }
 #[cfg(windows)]
 pub fn alloc_and_write_memory(process_id: winapi::shared::minwindef::DWORD, num_bytes: usize, bytes: &Vec<u8>) -> std::result::Result<*mut c_void, String> {
