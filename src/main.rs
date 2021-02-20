@@ -43,8 +43,8 @@ pub fn get_pid(process_name: &str) -> process_memory::Pid {
             while winapi::um::tlhelp32::Process32Next(snapshot, &mut entry)
                 == winapi::shared::minwindef::TRUE
             {
+                // print!{"{}", utf8_to_string(&entry.szExeFile)}
                 if utf8_to_string(&entry.szExeFile) == process_name {
-                    print!{"{}", utf8_to_string(&entry.szExeFile)}
                     return entry.th32ProcessID;
                 }
             }
@@ -116,6 +116,9 @@ pub fn get_offset(process_id: winapi::shared::minwindef::DWORD) -> std::result::
     unsafe {
         let hProcess: HANDLE =
             OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id);
+        if hProcess == null_mut() {
+            return Err(winapi::um::errhandlingapi::GetLastError());
+        }
         if hProcess != null_mut() {
             let mut hMod: HMODULE = null_mut();
             let mut cb_needed: u32 = 0u32;

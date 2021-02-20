@@ -7,3 +7,5 @@ rookIV.png
 rookIV.xcf
 board_reversing.txt
 complex_board.txt
+.cargo/config
+.vscode
