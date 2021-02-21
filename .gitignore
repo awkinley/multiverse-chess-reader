@@ -9,3 +9,4 @@ board_reversing.txt
 complex_board.txt
 .cargo/config
 .vscode
+hooks/
