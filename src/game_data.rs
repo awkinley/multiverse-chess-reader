@@ -1,4 +1,5 @@
-#[derive(Debug, Clone, Copy)]
+use enum_map::Enum;
+#[derive(Debug, Clone, Enum, Copy)]
 pub enum PieceType {
     Nothing, 
     Pawn,

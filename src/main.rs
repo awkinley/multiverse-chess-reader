@@ -511,6 +511,8 @@ pub fn move_for_board(board: &GameBoard, game_boards: &Vec<GameBoard>) -> notati
             PieceType::Nothing => false,
             _ => true,
         };
+    } else {
+
     }
 
 
@@ -528,6 +530,8 @@ pub fn generate_turns(game_boards: &Vec<GameBoard>) -> Vec<notation::Turn> {
     let mut board_num = 1i32;
     let mut player = Player::White;
     let mut moves = Vec::new();
+    let mut board_height : u32 = 8;
+    let mut prev_boardOption: Option<GameBoard> = None;
     while board_num < game_boards.len() as i32 {
         info!("board index: {}", board_num);
         let board = match get_boards_where_field_has_value(game_boards, BOARD_NUMBER, board_num) {
@@ -545,13 +549,23 @@ pub fn generate_turns(game_boards: &Vec<GameBoard>) -> Vec<notation::Turn> {
             a => {info!("player to move is {}", a); Player::White}
         };
 
+        board_height =  board.height;
+
         // because we're looking one turn ahead,
         // we look for when we find a board where that player makes the next move to know that we've found all their moves
+
+
+        let prev_board = match get_boards_where_field_has_value(game_boards, BOARD_NUMBER, prev_board_num) {
+            Some(a) => a,
+            None => {info!("field named {} with value {} not found", BOARD_NUMBER, prev_board_num); 
+                    return turns; }
+        };
+
         if player == player_to_move {
             let turn = Turn {moves: moves, player};
             moves = Vec::new();
             info!("turn: {:?}", turn);
-            info!("turn notation: {}", turn.to_notation());
+            info!("turn notation: {}", turn.to_notation(Some(&prev_board)));
             turns.push(turn);
             info!("\n");
             player = match player {
@@ -560,30 +574,24 @@ pub fn generate_turns(game_boards: &Vec<GameBoard>) -> Vec<notation::Turn> {
             }
         }
 
-        let prev_board = match get_boards_where_field_has_value(game_boards, BOARD_NUMBER, prev_board_num) {
-            Some(a) => a,
-            None => {info!("field named {} with value {} not found", BOARD_NUMBER, prev_board_num); 
-                    return turns; }
-        };
-
-        
-
-        // let mut moves = Vec::new();
-        let prev_move = move_for_board(&prev_board, game_boards);
-        moves.push(prev_move);
-
+        {
+            let prev_move = move_for_board(&prev_board, game_boards);
+            moves.push(prev_move);
         // a jump creates two boards, the one where the piece left that board, and the one where the piece arrived
         // so we increment one extra time to account for this
-        if prev_move.is_jump {
-            board_num += 1;
+            if prev_move.is_jump {
+                board_num += 1;
+            }
         }
-
+        prev_boardOption = Some(prev_board);
         board_num += 1;
     }
 
+
     let turn = Turn {moves: moves, player};
     info!("turn: {:?}", turn);
-    info!("turn notation: {}", turn.to_notation());
+    let prev= prev_boardOption.as_ref();
+    info!("turn notation: {}", turn.to_notation(prev));
     turns.push(turn);
     info!("\n");
     return turns;
@@ -594,11 +602,11 @@ pub fn get_turns_string(turns: &Vec<Turn>) -> String {
     let mut to_print = "".to_string();
     for t in turns {
         if t.player == Player::White {
-            to_print.push_str(&format!("{}. {}/ ", turn_num, t.to_notation()));
+            to_print.push_str(&format!("{}. {}/ ", turn_num, t.to_notation(None)));
         }
         else {
             // println!("{}{}", to_print , t.to_notation());
-            to_print.push_str(&format!("{}\n", t.to_notation()));
+            to_print.push_str(&format!("{}\n", t.to_notation(None)));
             turn_num += 1;
         }
         
@@ -633,7 +641,7 @@ fn main() -> std::io::Result<()>  {
         return do_print(&read_turns(pid, offset).unwrap());
     }
     use retry::OperationResult;
-    let _result = retry(Fixed::from_millis(1000), || {
+    let _result = retry(Fixed::from_millis(500), || {
         if false {
             return OperationResult::Ok(());
         }

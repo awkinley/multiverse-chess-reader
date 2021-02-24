@@ -16,6 +16,7 @@ lapp = "0.4.0"
 log4rs = "1.0.0"
 log = "0.4.14"
 lazy_static = "1.4.0"
+enum-map = "0.6.4"
 
 [target.'cfg(windows)'.dev-dependencies]
 winapi = { version = "0.3", features = ["tlhelp32", "psapi"] }
