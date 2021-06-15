@@ -59,6 +59,7 @@ impl From<Piece> for &str {
     }
 }
 
+
 #[derive(Debug, Clone, Copy)]
 pub struct Location {
     pub universe: i32,

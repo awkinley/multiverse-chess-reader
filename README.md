@@ -16,3 +16,13 @@ This is a super WIP at the moment, more reverse engineering needs to be done and
 # Some notes
 - This is some really really bad code, I'm pretty new to rust and also my own laziness has lead to everything being in main
 - This currently only works on windows (because it has to get the memory offset for the 5dchess exe and I'm on a windows machine so that's the OS I supported)
+
+# TODO
+- support unit promotion
+- support when multiple pieces can move to a location on a board
+- support for checks and mates and other similar anotations? (these don't seem integral to actually transcribing the game but would be nice)
+- a jump that moves the present (is this neccessary?)
+- 5DFEN for custom starting boards
+- make into a proper command line tool
+- file i/o with meta data
+- writting back to game state (including more reverse engineering)
