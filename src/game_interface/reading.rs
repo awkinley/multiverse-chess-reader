@@ -1,6 +1,21 @@
 use crate::game_data::*;
+pub fn read_bytes(process_handle: (*mut winapi::ctypes::c_void, process_memory::Architecture), starting_addresss: u64, length_bytes: u64) -> Result<Vec<u8>, std::io::Error> {
+    use process_memory::*;
+    
+    let mut bytes = Vec::<u8>::new();
+    for i in 0..length_bytes {
+        let r = DataMember::<u8>::new_offset(process_handle, vec![(starting_addresss + i) as usize]).read();
+        let value = match r {
+            Ok(result) => result,
+            Err(er) => return Err(er)
+        };
+        bytes.push(value);
+    }
+    return Ok(bytes);
+}
 
-pub fn read_bytes(
+// lazy fix to merge two different code bases
+pub fn read_bytes2(
     process_handle: (*mut winapi::ctypes::c_void, process_memory::Architecture),
     starting_addresss: u64,
     length_bytes: u64,

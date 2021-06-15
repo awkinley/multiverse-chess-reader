@@ -1,7 +1,7 @@
 use enum_map::Enum;
+
+
 #[derive(Debug, Clone, Enum, Copy)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
 pub enum PieceType {
     Nothing, 
     Pawn,

@@ -26,7 +26,7 @@ fn write_game(
     unsafe {
         let game_board_data_length = std::mem::size_of::<game_data::GameData>() as u64;
         let current_board_data =
-            reading::read_bytes(process_handle, game_data_address, game_board_data_length);
+            reading::read_bytes2(process_handle, game_data_address, game_board_data_length);
         let (_, the_game_data, _) = current_board_data.align_to::<game_data::GameData>();
 
         let mut new_game_data = game_data::GameData::default();

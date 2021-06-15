@@ -66,7 +66,7 @@ fn save_array(
     let array_len = array.array_len;
     let array_cap = array.array_cap;
     let byte_ptr: *mut u8 = array.array_ptr as *mut u8;
-    let mut bytes = reading::read_bytes(
+    let mut bytes = reading::read_bytes2(
         process_handle,
         array.array_ptr,
         (array_len * bytes_per_element) as u64,
@@ -221,25 +221,6 @@ pub fn get_field_value_in_board_by_name(board: &GameBoard, field_name: &str) -> 
 
 mod notation;
 use self::notation::*;
-// pub fn game_piece_to_notation_piece(p: GamePiece) -> notation::Piece {
-//     match p.piece_type {
-//         PieceType::Nothing => Piece::Nothing,
-//         PieceType::Pawn => Piece::Pawn,
-//         PieceType::Knight => Piece::Knight,
-//         PieceType::Bishop => Piece::Bishop,
-//         PieceType::Rook => Piece::Rook,
-//         PieceType::Queen => Piece::Queen,
-//         PieceType::King => Piece::King,
-//         PieceType::Unicorn => Piece::Unicorn,
-//         PieceType::Dragon => Piece::Dragon,
-//         PieceType::Brawn => Piece::Brawn,
-//         PieceType::FourPointQueen => Piece::FourPointQueen,
-//         PieceType::RoyalQueen => Piece::RoyalQueen,
-//         PieceType::CommongKing => Piece::CommongKing,
-//         _ => Piece::Nothing,
-//     }
-// }
-
 pub fn move_for_board(board: &GameBoard, game_boards: &Vec<GameBoard>) -> notation::Move {
     let next_move_start_row = get_field_value_in_board_by_name(&board, NEXT_MOVE_START_ROW);
     let next_move_start_col = get_field_value_in_board_by_name(&board, NEXT_MOVE_START_COL);
@@ -410,6 +391,7 @@ pub fn generate_turns(game_boards: &Vec<GameBoard>) -> Vec<notation::Turn> {
         let prev_move = move_for_board(&prev_board, game_boards);
         moves.push(prev_move);
 
+        {
         // a jump creates two boards, the one where the piece left that board, and the one where the piece arrived
         // so we increment one extra time to account for this
             if prev_move.is_jump {
@@ -452,7 +434,7 @@ unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
 use log::{info, warn, error};
 use retry::delay::Fixed;
 use retry::retry;
-// extern crate retry;
+extern crate retry;
 mod cli;
 use self::cli::*;
 #[cfg(windows)]
@@ -505,7 +487,7 @@ fn main() -> std::io::Result<()>  {
         info!("About to read into {}" , (offset + START_OF_GAME_BOARD_DATA) );
         let _game_board_data : std::vec::Vec<u8>;
         let result = retry(Fixed::from_millis(100).take(2), || {
-        return read_bytes(process_handle, (offset + START_OF_GAME_BOARD_DATA) as u64, game_board_data_length);
+        return reading::read_bytes(process_handle, (offset + START_OF_GAME_BOARD_DATA) as u64, game_board_data_length);
         });
         
         match result {
@@ -519,7 +501,7 @@ fn main() -> std::io::Result<()>  {
         
         let board_memory_length = 0xe4u64;
 
-        let board_data = read_bytes(process_handle, current_board_address, (num_boards as u64) * board_memory_length);
+        let board_data = reading::read_bytes(process_handle, current_board_address, (num_boards as u64) * board_memory_length);
         
         
 
